@@ -1,0 +1,262 @@
+#################
+##OLA 4 Opgave 1##
+#################
+#Librarries
+library(httr)
+library(rvest)
+library(dplyr)
+library(httr2)
+library(stringr)
+
+##OPGAVE 1.1##
+#Hent Headers (Kolonnenavne)
+carheaders <- c(firsbb)
+
+#Vi har valgt at arbejde med VW Id. 4 El
+#Få VW Link, URL og Data ind i R#
+#Side antal For i In 1:103
+
+#############
+#Lav prøve data frame 
+carheader <- c("Price","Model", "Property", "Details", "Description", "Location", "Link", "Carid")
+vw_dfprøve <- as.data.frame(matrix(nrow = 0, ncol = 8))
+colnames(vw_dfprøve) <- carheader
+#Lav et loop
+for (i in 1:103) {
+  pagenum <- if (i == 1) "" else paste0("&page=", i) #den her kode betyder i = 1, den laver tekstreng og page number er = i, hvis det er alt andet end 1
+  VW_URl <- paste0("https://www.bilbasen.dk/brugt/bil/vw/id2314?fuel=3&includeengroscvr=true&includeleasing=false", pagenum)
+  RAWRES_VW<-GET(url=VW_URl)
+  VW_CONTENT<- httr::content(RAWRES_VW, as="text")
+  VW_FIRSTPAGE<-read_html(VW_CONTENT)
+  VW_LIST <- VW_FIRSTPAGE %>% html_elements("article")  #Extract VW elements from page 
+  
+  for (car in VW_LIST) {
+    tryCatch({
+      Price <- car %>% html_element("[class='Listing_price__6B3kE']") %>% html_text() #Mine nøgler værdier#
+      Model <- car %>% html_element("[class*='Listing_makeModel__7yqgs']") %>% html_text()
+      Property <- car %>% html_element("[class*='Listing_properties___ptWv']") %>% html_text()
+      Details <- car %>% html_element("[class*='Listing_details__bkAK3']") %>% html_text()
+      Description <- car %>% html_element("[class*='Listing_description__sCNNM']") %>% html_text() 
+      Location <- car %>% html_element("[class*='Listing_location__nKGQz']") %>% html_text()
+      Link <- car %>% html_element("a") %>% html_attr("href")
+      Carid <- Link %>% str_extract("[0-9]{7}")
+      vw_dfprøve [NROW(vw_dfprøve) + 1,] = c(Price, Model, Property, Details, Description, Location, Link, Carid)
+    },
+    error=function(cond){
+      print(Model)
+    })
+  }
+}
+
+
+#Forhandler <- car %>% html_element("[class*='bas-MuiTypography-root bas-MuiTypography-h3']") %>% html_text()
+#Gem som csv fil 
+write.csv(vw_dfprøve, "~/Desktop/Data Analyse/OLA 4/Opgave 1/OLA4_Opgave_1.csv")
+
+library(readr)
+OLA4_Opgave_1 <- read_csv("~/Desktop/Data Analyse/OLA 4/Opgave 1/OLA4_Opgave_1.csv")
+View(OLA4_Opgave_1)
+###################################
+##Opgave 1.2##
+str(OLA4_Opgave_1)
+
+#Installer 
+install.packages("qdapRegex")
+library(qdapRegex)
+#Pakken qdapRegex bliver downloadet da denne fjerner unødvendige tegn som emojis
+
+vw_dfprøve$Description = rm_non_words(
+  vw_dfprøve$Description,
+  trim = TRUE,
+  clean = TRUE,
+  pattern = "@rm_non_words",
+  replacement = " ",
+  dictionary = getOption("regex.library"))
+
+
+OLA4_Opgave_1$Description = rm_non_words(
+  OLA4_Opgave_1$Description,
+  trim = TRUE,
+  clean = TRUE,
+  pattern = "@rm_non_words",
+  replacement = " ",
+  dictionary = getOption("regex.library"))
+
+#Min smulerede data
+sdvw_dfprøve2 <- OLA4_Opgave_1[,-1]
+
+#####################################
+##Opgave 1.3##
+#Lav en ny data frame for at simulere ændringerne og scrapedate
+
+#Min smulerede data
+sdvw_dfprøve2 <- OLA4_Opgave_1[,-1]
+
+#Library
+library(dplyr)
+
+# Antag at original_data er dataframen fra opgave 1.1
+# Eksempeldata (erstat med din egen data fra opgave 1.1)
+library(dplyr)
+
+#Tilføj scrapedate min originale data og simuleret
+OLA4Opgave1$Scrapedate <- as.Date("2024-11-22")
+sdvw_dfprøve2$Scrapedate <- as.Date("2024-11-25")
+
+#Fjern 5 biler for at simulere salg #
+# Sæt seed for at sikre, at de samme biler vælges ved hver kørsel
+set.seed(123)
+
+# Vælg tilfældigt 5 biler, der skal fjernes
+solgte_biler <- sample(nrow(sdvw_dfprøve2), 5)
+
+# Fjern de valgte rækker fra datasættet
+sdvw_dfprøve2 <- sdvw_dfprøve2[-solgte_biler, ]
+
+# Udskriv hvilke rækker der blev fjernet
+print("De følgende biler blev fjernet (solgte biler):")
+fjernede_biler <- vw_dfprøve[solgte_biler, ]  # Gem de fjernede biler for dokumentation
+print(fjernede_biler)
+
+### Trin 3: Tilføj 2 nye biler ###
+# Opret en tabel med data for de nye biler
+nye_biler <- tibble(
+  Pris = c("400,000", "420,000"),                # Pris i DKK
+  Model = c("VW ID4 GTX", "VW ID4 Pure Performance"),  # Modeller
+  Detaljer = c("2023, 10,000 km, Automatisk", "2022, 15,000 km, Automatisk"),  # Bilens detaljer
+  Beskrivelse = c("Nyeste model, høj ydelse.", "Perfekt stand, lavt forbrug."),  # Beskrivelse
+  Lokation = c("København", "Aarhus"),          # Lokation for salget
+  ForhandlerID = c("ID3000", "ID3001"),         # Forhandlerens ID
+  Forhandler_navn = c("Forhandler A", "Forhandler B"),  # Forhandlerens navn
+  Forhandler_adresse = c("Adresse A", "Adresse B"),     # Forhandlerens adresse
+  Forhandler_CVR = c("CVR3000", "CVR3001"),     # CVR-nummer
+  Link_til_bil = c("https://www.bilbasen.dk/bil1", "https://www.bilbasen.dk/bil2"),  # Links
+)
+
+# Tilføj de nye biler til datasættet
+sdvw_dfprøve2 <- bind_rows(sdvw_dfprøve2, nye_biler)
+
+# Udskriv de tilføjede biler
+print("De to nye biler blev tilføjet:")
+print(nye_biler)
+
+### Trin 4: Ændre priser for 3 tilfældige biler ###
+# Sæt seed for at sikre, at de samme biler vælges ved hver kørsel
+set.seed(456)
+
+# Vælg tilfældigt 3 biler, hvis priser skal ændres
+prisændringer <- sample(nrow(sdvw_dfprøve2), 3)
+
+# Gem de oprindelige priser for de valgte biler
+opdaterede_biler <- sdvw_dfprøve2 %>%
+  filter(row_number() %in% prisændringer) %>%
+  mutate(Oprindelig_pris = Pris)
+
+# Ændr priserne tilfældigt med ±10%
+sdvw_dfprøve2 <- sdvw_dfprøve2 %>%
+  mutate(
+    Pris = ifelse(
+      row_number() %in% prisændringer,               # Hvis bilens række er blandt de valgte
+      round(as.numeric(str_remove_all(Pris, "\\D")) * runif(1, 0.9, 1.1)),  # Ændr pris med ±10%
+      Pris                                           # Ellers behold den oprindelige pris
+    )
+  )
+
+
+
+###############################################
+# Opdater de nye priser i opdaterede_biler
+opdaterede_biler <- opdaterede_biler %>%
+  mutate(
+    Ny_pris = sdvw_dfprøve2 %>%
+      filter(row_number() %in% prisændringer) %>%
+      pull(Pris)
+  ) %>%
+  select(Model, Oprindelig_pris, Ny_pris)  # Behold kun relevante kolonner
+
+# Udskriv de biler med opdaterede priser
+print("Biler med opdaterede priser:")
+print(opdaterede_biler)
+
+### Trin 5: Gem det simulerede datasæt ###
+# Gem det simulerede datasæt som en CSV-fil
+write_csv(simuleret_vwdf, paste0("vw_id4_DATA_SIMULERET_", Sys.Date(), ".csv"))
+message("Det simulerede datasæt er gemt som CSV.")
+
+#Lav en funktion 
+
+
+#Nyt eksempel data 
+set.seed(123)
+
+###################################
+
+##Opgave 1.4##
+library(rvest)
+library(httr)
+library(dplyr)
+
+#Tysk link
+https://www.12gebrauchtwagen.de/vw
+
+
+# Initialiser en tom data frame
+carheader <- c("Model", "Price", "Year", "Mileage", "Location", "Link")
+tyske_biler <- OLA4_Opgave_1(matrix(ncol = length(carheader), nrow = 0))
+colnames(tyske_biler) <- carheader
+
+# Base URL for VW på 12gebrauchtwagen.de (erstat med den korrekte URL fra din søgning)
+base_url <- "https://www.12gebrauchtwagen.de/vw?page="
+
+# Loop gennem flere sider (fx de første 5 sider)
+for (i in 1:5) {
+  url <- paste0(base_url, i)  # Tilføj sidetal
+  page <- GET(url)
+  
+  # Kontroller, om siden er korrekt hentet
+  if (status_code(page) != 200) {
+    message("Fejl ved hentning af side ", i)
+    next
+  }
+  
+  # Læs HTML
+  page_content <- read_html(page)
+  
+  # Extract data
+  models <- page_content %>% html_elements(".class-for-model") %>% html_text(trim = TRUE)  # Find den rigtige CSS-klasse
+  prices <- page_content %>% html_elements(".class-for-price") %>% html_text(trim = TRUE)
+  years <- page_content %>% html_elements(".class-for-year") %>% html_text(trim = TRUE)
+  mileages <- page_content %>% html_elements(".class-for-mileage") %>% html_text(trim = TRUE)
+  locations <- page_content %>% html_elements(".class-for-location") %>% html_text(trim = TRUE)
+  links <- page_content %>% html_elements(".class-for-link") %>% html_attr("href")
+  
+  # Kombinér data i en midlertidig data frame
+  temp_OLA4 <- OLA4_Opgave_1(
+    Model = models,
+    Price = prices,
+    Year = years,
+    Mileage = mileages,
+    Location = locations,
+    Link = links,
+    stringsAsFactors = FALSE
+  )
+  
+  # Tilføj til hoveddataframen
+  tyske_biler <- bind_rows(tyske_biler, temp_data)
+}
+
+# Se resultatet
+print(head(tyske_biler))
+
+
+#Lav et visuelt eksempel, så du kan se hvad der står i den første tekstboks
+library(ggplot2)
+library(ggtext)
+install.packages("dplyr")
+library(dplyr)
+
+
+
+#Indlæse CSV filen
+OLA4_Opgave_1 <- read_csv("~/Desktop/Data Analyse/OLA 4/Opgave 1/OLA4_Opgave_1.csv")
+View(OLA4_Opgave_1)
